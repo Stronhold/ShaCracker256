@@ -1,20 +1,19 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "sha256.h"
 #define ALPHABET "12345"
 #define MIN 2
 #define MAX 4
+#define HASHLENGTH 32
 
 //obtenemos la potencia para un numero (funciona!)
 int getPow(int size, int pos){
 	int i;
 	int result = 1;
-	printf("Resultado para posicion: %i \r\n", pos);
 	for(i = 1; i <= pos;i++){
 		result *= size;
 	}
-	printf("Result: %u \r\n", result);
-	printf("--------------------------------- \r\n");
 	return result;
 }
 
@@ -22,12 +21,20 @@ int getPow(int size, int pos){
 int getKeySpace(int min, int max, int size){
 	int i;
 	int result = 0;
-	//printf("Min recibido: %u", )
 	for(i = min; i <= max; i++){
 		result += getPow(size, i);
 	}
 	return result;
 }
+
+void getHash(char *str, char hash[HASHLENGTH+1] ) {
+   unsigned char hashAux[32];
+   SHA256_CTX ctx;
+   sha256_init(&ctx);
+   sha256_update(&ctx,str,strlen(str));
+   sha256_final(&ctx,hash);
+}
+
 
 char* getKey(int indice, int min, int max, char* alph){
 	int size = min;
@@ -38,7 +45,6 @@ char* getKey(int indice, int min, int max, char* alph){
 		indexs -= getPow(longitudAlfabeto, size);
 		size++;
 	}
-	printf("Tamaño del array: %u \r\n", size);
 	
 	char *caracters = malloc(size+1);
 	int i = 0;
@@ -48,7 +54,6 @@ char* getKey(int indice, int min, int max, char* alph){
 		caracters[i] = alph[0];
 	}
 	caracters[size] = '\0';
-	printf("%s \n", caracters);
 	i = 0;
 
 	//cambio de base
@@ -61,15 +66,38 @@ char* getKey(int indice, int min, int max, char* alph){
 
 }
 
-//haciendo pruebas aun con el getkey
+void print_hash(unsigned char hash[])
+{
+   int idx;
+   for (idx=0; idx < 32; idx++)
+      printf("%02x",hash[idx]);
+   printf("\n");
+}
+
+//bool does not exist in c pre c99
 int main(int argc, char *argv[]){
+	auto password = "45";
+	unsigned char passwordHash[HASHLENGTH+1];
+	getHash(password, passwordHash);
+
+	unsigned char hash[HASHLENGTH+1]; 
 	int size = strlen(ALPHABET);
 	printf("Size: %u \r\n", size);
 	int keyspace = getKeySpace(MIN, MAX, size);
 	printf("KeySpace %u \r\n", keyspace);
-	char* key = getKey(0, MIN,MAX, ALPHABET);
-	//char* clave = getKey(0,0,0,"");
-	printf("Clave: %s \r\n", key);
-	free(key);
+	int i;
+	int same = 5;
+	for(i = 0; i < keyspace && same != 0; i++){
+		char* key = getKey(i, MIN,MAX, ALPHABET);
+		printf("Clave: %s \r\n", key);
+		getHash(key, hash);
+		same = memcmp(passwordHash, hash, HASHLENGTH);
+
+		printf("Clave: %s \r\n", key);
+		printf("Iguales? %i \r\n", same);
+		free(key);
+	}
+	printf("%i \n", i );
+	//check de si son iguales
 	return 0;
 }
