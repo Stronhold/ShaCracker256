@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include "sha256.h"
-#define ALPHABET "12345"
+#define ALPHABET "abcdefghijklmnopqrstu"
 #define MIN 2
-#define MAX 4
+#define MAX 6
 #define HASHLENGTH 32
 
 //obtenemos la potencia para un numero (funciona!)
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]){
 	MPI_Status status;
 	int buf = 1;
 
-	auto password = "53";
+	auto password = "fonki";
 	unsigned char passwordHash[HASHLENGTH+1];
 	getHash(password, passwordHash);
 
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]){
 	int keyspace = getKeySpace(MIN, MAX, size);
 	printf("KeySpace %u \r\n", keyspace);
 	int same = 5;
-	int result;
+	char* result = '\0';
 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -102,11 +102,25 @@ int main(int argc, char *argv[]){
   	printf("Rank: %i, Size: %i\n", rank, sizew);
 
   	if(rank == 0){
-		for(int i = 0; i < keyspace && same != 0; i++){
+		MPI_Request request;
+    	int flag;
+  		int i = 0;
+
+  		MPI_Irecv(&buf, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &request);
+
+		while(i < keyspace && same != 0){
+        	MPI_Test (&request, &flag, &status);
+        	if(flag == 1)
+            	same = 0;
+
 			MPI_Send(&buf, 1, MPI_INT, next, i, MPI_COMM_WORLD);
-			if(next == 3)
-				next = 0;
 			next++;
+			i++;
+
+			if(next == sizew)
+				next = 1;
+			if(status.MPI_TAG != NULL)
+				same = 0;
 		}
 	}
 
@@ -119,26 +133,28 @@ int main(int argc, char *argv[]){
 				getHash(key, hash);
 				same = memcmp(passwordHash, hash, HASHLENGTH);
 
-				printf("Clave: %s I: %i Rank: %i\n ", key, status.MPI_TAG, rank);
-				printf("Iguales? %i \r\n", same);
 				if(same == 0){
-					result = atoi(key);
-					for(int i=1; i<sizew; i++){
+					result = malloc(strlen(key) + 1);
+					strcpy(result, key);
+					for(int i=0; i<sizew; i++){
 						if(i != rank)
-							MPI_Send(&buf, 1, MPI_INT, i, result, MPI_COMM_WORLD);
+							MPI_Send(&buf, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
 					}
 				}
 				free(key);
 			}
 			else{
 				same = 0;
-				result = status.MPI_TAG;
 			}
 		}
 	}
 
+	int MPI_Barrier(MPI_Comm comm);
+
+	if(rank != 0 && result != NULL && result[0] != '\0'){
+		printf("Rank %i Result: %s\n", rank, result);
+		free(result);
+	}
 	MPI_Finalize();
-	if(rank != 0)
-		printf("Rank %i Result: %i\n", rank, result);
 	return 0;
 }

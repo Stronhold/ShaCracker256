@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "sha256.h"
-#define ALPHABET "12345"
+#define ALPHABET "123456789"
 #define MIN 2
 #define MAX 4
 #define HASHLENGTH 32
@@ -97,6 +97,11 @@ int main(int argc, char *argv[]){
 		printf("Iguales? %i \r\n", same);
 		free(key);
 	}
+
+	for(int i=0; i<HASHLENGTH; i++){
+		printf("%c", passwordHash[i]);
+	}
+	printf("\n");
 	printf("%i \n", i );
 	//check de si son iguales
 	return 0;

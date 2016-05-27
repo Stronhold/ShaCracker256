@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <omp.h>
 #include "sha256.h"
-#define ALPHABET "12345"
+#define ALPHABET "abcdefghijklmnopqrstu"
 #define MIN 2
-#define MAX 4
+#define MAX 6
 #define HASHLENGTH 32
+#define NUM_THR 4
 
 //obtenemos la potencia para un numero (funciona!)
 int getPow(int size, int pos){
@@ -23,11 +24,7 @@ int getKeySpace(int min, int max, int size){
 	int i;
 	int result = 0;
 
-	#pragma omp parallel num_threads(4)
-	#pragma omp for
 	for(i = min; i <= max; i++){
-		//int num = omp_get_thread_num();
-		//printf("Thread: %i \n", num );
 		result += getPow(size, i);
 	}
 	return result;
@@ -82,7 +79,7 @@ void print_hash(unsigned char hash[])
 
 //bool does not exist in c pre c99
 int main(int argc, char *argv[]){
-	auto password = "5233";
+	auto password = "fonki";
 	unsigned char passwordHash[HASHLENGTH+1];
 	getHash(password, passwordHash);
 
@@ -94,30 +91,30 @@ int main(int argc, char *argv[]){
 	int i=0;
 	int same = 5;
 	int same2 = 5;
-	int result;
+	char* result;
 
-	#pragma omp parallel num_threads(4) shared(i, same) private(hash, same2)
+	#pragma omp parallel num_threads(NUM_THR) shared(i, same) private(hash, same2)
 	{
+		printf("Thread: %i\r\n", omp_get_thread_num());
 		while(i < keyspace && same!=0){
 			i++;
 			char* key = getKey(i, MIN,MAX, ALPHABET);
-			printf("Thread: %i Clave: %s \r\n", omp_get_thread_num(), key);
 			//printf("Clave: %s\r\n", key);
 			getHash(key, hash);
 			same2 = memcmp(passwordHash, hash, HASHLENGTH);
 
-
 			//printf("Iguales? %i \r\n", same);
 			if(same2 == 0){
 				same = 0;
-				result = atoi(key);
+				result = malloc(strlen(key) + 1);
+				strcpy(result, key);
 			}
 			free(key);
 		}
 	}
 
-	printf("%i \n", i );
-	printf("Result: %i\n", result);
+	printf("Result: %s\n", result);
+	free(result);
 	//check de si son iguales
 	return 0;
 }
